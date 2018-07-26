@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.Build.NoTargets/1.0.39">
+
+    <Target Name="_CreateProjectDirectories">
+        <MakeDir Directories="@(ProjectReference->'$(MSBuildProjectDirectory)/obj/%(Filename)')" />
+        <MakeDir Directories="@(ProjectReference->'$(MSBuildProjectDirectory)/obj/%(Filename)/charts')" />
+    </Target>
+
+    <Target Name="_CreateProjectLinks">
+        <ItemGroup>
+            <_LinkCmd Include="@(ProjectReference->'ln -s %(RootDir)%(Directory) obj/%(Filename)/Sources')"
+                      Condition="'$(OS)' == 'Unix' And !Exists('obj/%(Filename)/Sources')" />
+            <_LinkCmd Include="@(ProjectReference->'mklink /d obj/%(Filename)/Sources %(RootDir)%(Directory)')"
+                      Condition="'$(OS)' == 'Windows_NT' And !Exists('obj/%(Filename)/Sources')" />
+        </ItemGroup>
+
+        <Exec Command="%(_LinkCmd.Identity)" WorkingDirectory="$(MSBuildProjectDirectory)" Condition="'@(_LinkCmd)' != ''" />
+    </Target>
+
+    <Target Name="_GenerateAzdsTemplateForProject" DependsOnTargets="_CreateProjectDirectories;_CreateProjectLinks">
+        <ItemGroup>
+            <_AzdsProjectReference Include="@(ProjectReference)" Condition="'%(FullPath)' == '$(ProjectFilePath)'" />
+        </ItemGroup>
+
+        <Message Importance="high" Text="Generating AZDS template for '%(_AzdsProjectReference.Filename) -> %(_AzdsProjectReference.FullPath)'" />
+    </Target>
+
+</Project>

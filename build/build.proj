@@ -1,0 +1,64 @@
+<!--
+  This MSBuild project file will restore, build, and pack the projects before publishing them to one of two
+  sources:
+
+  a) For Desktop builds (i.e., where the IsDesktopBuild property is true), a folder called 'LocalPackages' in the
+     home path.
+
+     The published package version will include a pre-release tag based on the current Git branch name and commit count.
+     When configured, you can change <PackageReference /> elements in dependant projects to make reference to this
+     pre-release version and have it restore from the 'LocalPackages' folder rather than publish and then restore from
+     an external NuGet feed.
+
+  b) Otherwise the NuGet source defined in ../build.props.
+  -->
+<Project>
+	<Import Project="../build.props" />
+
+	<PropertyGroup>
+		<Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+		<VersionPrefix>$(MajorVersion).$(MinorVersion).$(PatchVersion)</VersionPrefix>
+		<VersionSuffix Condition="'$(VersionSuffix)' == ''"></VersionSuffix>
+		<IsDesktopBuild>true</IsDesktopBuild>
+		<HomeFolderPath>$(HOMEPATH)</HomeFolderPath>
+		<HomeFolderPath Condition="'$(HomeFolderPath)' == ''">$(HOME)</HomeFolderPath>
+		<LocalPackageFolderPath>$(HomeFolderPath)/LocalPackages</LocalPackageFolderPath>
+		<NuGetTarget Condition="'$(IsDesktopBuild)' == 'true'">$(LocalPackageFolderPath)</NuGetTarget>
+		<NuGetTarget Condition="'$(IsDesktopBuild)' != 'true'">$(NuGetServer)</NuGetTarget>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<CsProj Include="../src/HelmDeploy.Sdk/HelmDeploy.Sdk.csproj" />
+	</ItemGroup>
+
+	<Target Name="Build" DependsOnTargets="Publish" />
+
+	<Target Name="BuildAndPack">
+		<Exec Command="git rev-parse --abbrev-ref HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low">
+			<Output TaskParameter="ConsoleOutput" PropertyName="GitBranchName" />
+		</Exec>
+		<Exec Command="git rev-list --count HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low">
+			<Output TaskParameter="ConsoleOutput" PropertyName="GitCommitCount" />
+		</Exec>
+
+		<PropertyGroup Condition="'$(IsDesktopBuild)' == 'true'">
+			<VersionSuffix>$(GitBranchName.Replace("/", "-"))-$([System.String]::Format('{0:0000000}', $([System.Int32]::Parse($(GitCommitCount)))))</VersionSuffix>
+		</PropertyGroup>
+
+		<!--
+		  We have to call Restore with Version details to ensure that the generated .nuspec files contain the correct version
+		  numbers for any ProjectReference inclusions (otherwise they remain set to 1.0.0).
+		  See https://github.com/NuGet/Home/issues/4337 for more details
+		  -->
+		<MSBuild Projects="@(CsProj)" Targets="Restore;Build;Pack" Properties="Configuration=$(Configuration);VersionPrefix=$(VersionPrefix);VersionSuffix=$(VersionSuffix)" />
+	</Target>
+
+	<Target Name="Publish" DependsOnTargets="BuildAndPack">
+		<ItemGroup>
+			<Package Include="../src/**/bin/$(Configuration)/*.nupkg" />
+		</ItemGroup>
+
+		<MakeDir Condition="'$(IsDesktopBuild)' == 'true' And !Exists('$(LocalPackageFolderPath)')" Directories="$(LocalPackageFolderPath)" />
+		<Exec Command="dotnet nuget push '%(Package.Identity)' --source '$(NuGetTarget)'" />
+	</Target>
+</Project>
