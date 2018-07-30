@@ -1,4 +1,21 @@
-<Project Sdk="Microsoft.Build.NoTargets/1.0.39">
+<Project>
+    <UsingTask TaskName="HelmDeploy.Sdk.Tasks.GenerateHelmApplicationFiles" AssemblyFile="$(MSBuildThisFileDirectory)/../lib/netstandard2.0/HelmDeploy.Sdk.Tasks.dll" />
+
+    <Target Name="CompileHelmChart"
+            BeforeTargets="CoreCompile">
+        <PropertyGroup>
+            <TargetDirectory>$(MSBuildProjectDirectory)/obj/$(Configuration)/$(ApplicationName)</TargetDirectory>
+            <ApplicationVersion>$(ApplicationMajorVersion).$(ApplicationMinorVersion).$(ApplicationPatchVersion)$(ApplicationVersionSuffix)</ApplicationVersion>
+        </PropertyGroup>
+
+        <MakeDir Directories="$(TargetDirectory)" />
+
+        <GenerateHelmApplicationFiles ProjectDirectory="$(MSBuildProjectDirectory)" TargetDirectory="$(TargetDirectory)"
+                                      ApplicationName="$(ApplicationName)"
+                                      ApplicationVersion="$(ApplicationVersion)"
+                                      ApplicationDescription="$(ApplicationDescription)"
+                                      ProjectReferences="@(ProjectReference)" />
+    </Target>
 
     <Target Name="_CreateProjectDirectories">
         <MakeDir Directories="@(ProjectReference->'$(MSBuildProjectDirectory)/obj/%(Filename)')" />

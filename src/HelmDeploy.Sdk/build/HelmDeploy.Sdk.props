@@ -2,6 +2,14 @@
 
     <PropertyGroup>
         <TargetFramework>netcoreapp2.1</TargetFramework>
+
+        <ApplicationName>$(MSBuildProjectName.Replace('.', '-').ToLowerInvariant())</ApplicationName>
+        <ApplicationDescription>A Helm deployment chart for '$(ApplicationName)'.</ApplicationDescription>
+
+		<ApplicationMajorVersion>1</ApplicationMajorVersion>
+		<ApplicationMinorVersion>0</ApplicationMinorVersion>
+		<ApplicationPatchVersion>0</ApplicationPatchVersion>
+        <ApplicationVersionSuffix></ApplicationVersionSuffix>
     </PropertyGroup>
 
 </Project>
