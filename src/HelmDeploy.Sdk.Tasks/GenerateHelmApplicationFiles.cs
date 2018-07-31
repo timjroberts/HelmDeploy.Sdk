@@ -32,6 +32,9 @@ namespace HelmDeploy.Sdk.Tasks
         public string ApplicationDescription
         { get; set; }
 
+        public string RepositoryPrefix
+        { get; set; }
+
         public ITaskItem[] ProjectReferences
         { get; set; }
 
@@ -49,7 +52,8 @@ namespace HelmDeploy.Sdk.Tasks
                         {
                             name = ApplicationName,
                             version = ApplicationVersion
-                        }
+                        },
+                        repositoryPrefix = !string.IsNullOrEmpty(RepositoryPrefix) ? $"{RepositoryPrefix}/" : null
                     }
                 }
             );
@@ -102,13 +106,20 @@ namespace HelmDeploy.Sdk.Tasks
                         replicas = 1,
                         selector = new
                         {
-                            matchLabels = new
+                            matchLabels = new Dictionary<string, object>()
                             {
-                                app = ApplicationName
+                                { "app", ApplicationName }
                             }
                         },
                         template = new
                         {
+                            metadata = new
+                            {
+                                labels = new Dictionary<string, object>()
+                                {
+                                    { "app", ApplicationName }
+                                }
+                            },
                             spec = new
                             {
                                 containers = new List<IDictionary<string, object>>()
@@ -116,7 +127,7 @@ namespace HelmDeploy.Sdk.Tasks
                                     new Dictionary<string, object>()
                                     {
                                         { "name", serviceName },
-                                        { "image", $"{serviceName}:{{{{ .Values.global.application.version }}}}" },
+                                        { "image", $"{{{{ .Values.global.repositoryPrefix }}}}{ApplicationName}/{serviceName}:{{{{ .Values.global.application.version }}}}" },
                                         { "imagePullPolicy",  "IfNotPresent"},
                                         {
                                             "ports",
@@ -151,7 +162,7 @@ namespace HelmDeploy.Sdk.Tasks
                     kind = "Service",
                     metadata = new
                     {
-                        name = serviceName,
+                        name = $"{serviceName}-service",
                         labels = new
                         {
                             app = $"{ApplicationName}-{{{{ .Values.global.application.version }}}}"
@@ -202,9 +213,9 @@ namespace HelmDeploy.Sdk.Tasks
                         {
                             app = $"{ApplicationName}-{{{{ .Values.global.application.version }}}}"
                         },
-                        annotations = new
+                        annotations = new Dictionary<string, object>()
                         {
-                            //kubernetes.io/ingress.class = "addon-http-application-routing"
+                            { "kubernetes.io/ingress.class", "nginx" }
                         }
                     },
                     spec = new
@@ -225,7 +236,7 @@ namespace HelmDeploy.Sdk.Tasks
                                                         "backend",
                                                         new Dictionary<string, object>()
                                                         { 
-                                                            { "serviceName", serviceName },
+                                                            { "serviceName", $"{serviceName}-service" },
                                                             { "servicePort", port["port"] }
                                                         }
                                                     }
