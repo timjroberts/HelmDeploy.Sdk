@@ -10,6 +10,9 @@
 		<ApplicationMinorVersion>0</ApplicationMinorVersion>
 		<ApplicationPatchVersion>0</ApplicationPatchVersion>
         <ApplicationVersionSuffix></ApplicationVersionSuffix>
+        <ApplicationVersion>$(ApplicationMajorVersion).$(ApplicationMinorVersion).$(ApplicationPatchVersion)$(ApplicationVersionSuffix)</ApplicationVersion>
+
+        <IsDesktopBuild Condition="'$(IsDesktopBuild)' == ''">true</IsDesktopBuild>
     </PropertyGroup>
 
 </Project>
