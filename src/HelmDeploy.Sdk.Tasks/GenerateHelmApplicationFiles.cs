@@ -85,7 +85,15 @@ namespace HelmDeploy.Sdk.Tasks
 
             CreateHelmChartFile(new FileInfo(Path.Combine(serviceTargetDirectory.FullName, "Chart.yaml")), serviceName, serviceDescription);
 
-            var portsConfig = LoadYamlFile<IDictionary<string, IList<IDictionary<string, dynamic>>>>(new FileInfo(Path.Combine(serviceConfigDirectory.FullName, "Ports.yaml")));
+            var config = LoadYamlFile<IDictionary<string, object>>(new FileInfo(Path.Combine(serviceConfigDirectory.FullName, "config.yaml")));
+
+            var ingressConfig = config.ContainsKey("ingress")
+                ? (Dictionary<object, object>)config["ingress"]
+                : null;
+
+            var portsConfig = ingressConfig != null && ingressConfig.ContainsKey("ports")
+                ? (List<object>)ingressConfig["ports"]
+                : Enumerable.Empty<object>().ToList();
 
             CreateYamlFileFromObject(
                 new FileInfo(Path.Combine(serviceTemplatesDirectory.FullName, "deployment.yaml")),
@@ -103,7 +111,7 @@ namespace HelmDeploy.Sdk.Tasks
                     },
                     spec = new
                     {
-                        replicas = 1,
+                        replicas = config.ContainsKey("replicaCount") ? config["replicaCount"] : 1,
                         selector = new
                         {
                             matchLabels = new Dictionary<string, object>()
@@ -131,8 +139,8 @@ namespace HelmDeploy.Sdk.Tasks
                                         { "imagePullPolicy",  "IfNotPresent"},
                                         {
                                             "ports",
-                                            portsConfig["ports"].Select(
-                                                port =>
+                                            portsConfig.Select(
+                                                (dynamic port) =>
                                                 {
                                                     var newPort = new Dictionary<string, object>();
 
@@ -170,8 +178,8 @@ namespace HelmDeploy.Sdk.Tasks
                     },
                     spec = new
                     {
-                        ports = portsConfig["ports"].Select(
-                            port =>
+                        ports = portsConfig.Select(
+                            (dynamic port) =>
                             {
                                 var newPort = new Dictionary<string, object>();
 
@@ -192,13 +200,11 @@ namespace HelmDeploy.Sdk.Tasks
                 }
             );
 
-            if (portsConfig == null) return;
-
-            var httpPortsConfig = portsConfig["ports"].Where(
-                port => string.Equals(port["name"], "http", StringComparison.InvariantCultureIgnoreCase) || string.Equals(port["name"], "https", StringComparison.InvariantCultureIgnoreCase)
+            var httpPortsConfig = portsConfig.Where(
+                (dynamic port) => string.Equals(port["name"], "http", StringComparison.InvariantCultureIgnoreCase) || string.Equals(port["name"], "https", StringComparison.InvariantCultureIgnoreCase)
             ).ToList();
 
-            if (httpPortsConfig == null || httpPortsConfig.Count == 0) return;
+            if (httpPortsConfig.Count == 0) return;
 
             CreateYamlFileFromObject(
                 new FileInfo(Path.Combine(serviceTemplatesDirectory.FullName, "ingress.yaml")),
