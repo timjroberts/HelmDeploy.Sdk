@@ -25,13 +25,16 @@
     </Target>
 
 
-    <Target Name="Pack" Condition="'$(IsDesktopBuild)' != 'true'">
+    <Target Name="Pack" Condition="'$(IsDesktopBuild)' != 'true'" DependsOnTargets="CompileHelmChart">
         <PropertyGroup>
             <_RepositoryPrefix Condition="'$(RepositoryPrefix)' != ''">$(RepositoryPrefix)/</_RepositoryPrefix>
         </PropertyGroup>
 
         <Exec Command="docker build -f $(MSBuildProjectDirectory)/%(ProjectReference.Filename)/Dockerfile.$(Configuration) --tag $([System.String]::Join('/', $(_RepositoryPrefix)$(ApplicationName), %(ProjectReference.Filename):$(ApplicationVersion)).ToLowerInvariant()) ."
               WorkingDirectory="%(ProjectReference.RootDir)%(ProjectReference.Directory)" />
+
+        <Exec Command="helm package $(ApplicationName) -d $(MSBuildProjectDirectory)/bin/$(Configuration)"
+              WorkingDirectory="$(MSBuildProjectDirectory)/obj/$(Configuration)" />
     </Target>
 
 
