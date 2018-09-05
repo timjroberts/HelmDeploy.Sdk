@@ -12,6 +12,8 @@ namespace HelmDeploy.Sdk.Tasks
 {
     public class GenerateHelmApplicationFiles : Task
     {
+        private DirectoryInfo ProjectDirectoryInfo;
+
         [Required]
         public string ProjectDirectory
         { get; set; }
@@ -40,6 +42,8 @@ namespace HelmDeploy.Sdk.Tasks
 
         public override bool Execute()
         {
+            ProjectDirectoryInfo = new DirectoryInfo(ProjectDirectory);
+
             try
             {
                 CreateHelmIgnoreFile(new DirectoryInfo(TargetDirectory));
@@ -82,6 +86,13 @@ namespace HelmDeploy.Sdk.Tasks
 
         private void CreateServiceHelmChart(ITaskItem projectReference)
         {
+            var projectReferenceDefiningDirectory = new DirectoryInfo(projectReference.GetMetadata("DefiningProjectDirectory"));
+
+            var path1 = Path.Combine(projectReferenceDefiningDirectory.Parent.FullName, projectReferenceDefiningDirectory.Name);
+            var path2 = Path.Combine(ProjectDirectoryInfo.Parent.FullName, ProjectDirectoryInfo.Name);
+
+            if (!string.Equals(path1, path2, StringComparison.Ordinal)) return;
+
             var serviceProjectDirectory = new DirectoryInfo(Path.GetDirectoryName(projectReference.ItemSpec));
             var serviceName = serviceProjectDirectory.Name.Replace('.', '-').ToLowerInvariant();
             var serviceDescription = $"A Helm deployment chart for the '{serviceName}' service.";
